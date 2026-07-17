@@ -36,7 +36,7 @@ A simple REST API for managing contacts using **FastAPI** and **SQLite**.
 ## Run the Project
 
 ```bash
-git clone https://github.com/sehrish118/fastapi-crud-practice.git
-cd fastapi-crud-practice
+git clone https://github.com/sehrish118/contact-crud-api.git
+cd contact-crud-api
 
 
