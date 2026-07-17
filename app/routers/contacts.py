@@ -3,12 +3,16 @@ import sqlite3
 
 from app.database import get_db
 from app.models import Contact
+from app.dependencies import get_current_user
 
 router = APIRouter()
 
 
 @router.get("/contacts")
-def get_contacts(conn: sqlite3.Connection = Depends(get_db)):
+def get_contacts(
+    conn: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM contacts")
     rows = cursor.fetchall()
@@ -16,7 +20,11 @@ def get_contacts(conn: sqlite3.Connection = Depends(get_db)):
 
 
 @router.get("/contacts/{contact_id}")
-def find_contact(contact_id: int, conn: sqlite3.Connection = Depends(get_db)):
+def find_contact(
+    contact_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM contacts WHERE id=?", (contact_id,))
     row = cursor.fetchone()
@@ -28,7 +36,11 @@ def find_contact(contact_id: int, conn: sqlite3.Connection = Depends(get_db)):
 
 
 @router.post("/contacts", status_code=201)
-def add_contact(contact: Contact, conn: sqlite3.Connection = Depends(get_db)):
+def add_contact(
+    contact: Contact,
+    conn: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     cursor = conn.cursor()
 
     cursor.execute("SELECT * FROM contacts WHERE email=?", (contact.email,))
@@ -38,13 +50,9 @@ def add_contact(contact: Contact, conn: sqlite3.Connection = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Email already exists.")
 
     cursor.execute(
-        """
-        INSERT INTO contacts(name, phone, email, group_name) 
-        VALUES(?,?,?,?)
-    """,
+        "INSERT INTO contacts(name, phone, email, group_name) VALUES(?,?,?,?)",
         (contact.name, contact.phone, contact.email, contact.group),
     )
-
     conn.commit()
     id = cursor.lastrowid
 
@@ -59,11 +67,14 @@ def add_contact(contact: Contact, conn: sqlite3.Connection = Depends(get_db)):
 
 @router.put("/contacts/{contact_id}")
 def update_contact(
-    contact_id: int, contact: Contact, conn: sqlite3.Connection = Depends(get_db)
+    contact_id: int,
+    contact: Contact,
+    conn: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
 ):
     cursor = conn.cursor()
     cursor.execute(
-        """UPDATE contacts SET name=?, phone=?, email=?, group_name=? where id=?""",
+        "UPDATE contacts SET name=?, phone=?, email=?, group_name=? WHERE id=?",
         (contact.name, contact.phone, contact.email, contact.group, contact_id),
     )
 
@@ -85,9 +96,12 @@ def update_contact(
 
 
 @router.delete("/contacts/{contact_id}")
-def delete_contact(contact_id: int, conn: sqlite3.Connection = Depends(get_db)):
+def delete_contact(
+    contact_id: int,
+    conn: sqlite3.Connection = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
     cursor = conn.cursor()
-
     cursor.execute("DELETE FROM contacts WHERE id=?", (contact_id,))
 
     if cursor.rowcount == 0:
