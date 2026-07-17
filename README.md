@@ -31,7 +31,7 @@ contact-book-api/
 
 ```bash
 # 1. Clone the repo
-git clone <your-repo-url>
+git clone https://github.com/sehrish118/contact-crud-api.git
 cd contact-book-api
 
 # 2. Create & activate a virtual environment
