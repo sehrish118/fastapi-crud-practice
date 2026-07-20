@@ -1,8 +1,8 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 import sqlite3
-
-from app.database import get_db
+from app.schemas.user import UserOut
+from app.core.database import get_db
 from app.auth import decode_access_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
@@ -33,4 +33,4 @@ def get_current_user(
     if user is None:
         raise credentials_exception
 
-    return dict(user)
+    return UserOut.model_validate(dict(user))

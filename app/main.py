@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.database import init_db
+from app.core.database import init_db
 from app.routers import contacts, auth
 
 app = FastAPI()

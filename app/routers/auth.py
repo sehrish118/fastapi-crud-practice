@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 import sqlite3
 
-from app.database import get_db
-from app.models import UserCreate, UserLogin, Token
+from app.core.database import get_db
+from app.schemas.user import UserCreate, UserLogin, Token
 from app.auth import hash_password, verify_password, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])

@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 import sqlite3
 
-from app.database import get_db
-from app.models import Contact
+from app.core.database import get_db
+from app.schemas.contact import Contact
+from app.schemas.user import UserOut
 from app.dependencies import get_current_user
 
 router = APIRouter()
@@ -11,10 +12,13 @@ router = APIRouter()
 @router.get("/contacts")
 def get_contacts(
     conn: sqlite3.Connection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
 ):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM contacts")
+    cursor.execute(
+        "SELECT * FROM contacts WHERE user_id=?",
+        (current_user.id,),
+    )
     rows = cursor.fetchall()
     return [dict(row) for row in rows]
 
@@ -23,10 +27,13 @@ def get_contacts(
 def find_contact(
     contact_id: int,
     conn: sqlite3.Connection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
 ):
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM contacts WHERE id=?", (contact_id,))
+    cursor.execute(
+        "SELECT * FROM contacts WHERE id=? AND user_id=?",
+        (contact_id, current_user.id),
+    )
     row = cursor.fetchone()
 
     if row is None:
@@ -39,25 +46,39 @@ def find_contact(
 def add_contact(
     contact: Contact,
     conn: sqlite3.Connection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
 ):
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM contacts WHERE email=?", (contact.email,))
+    cursor.execute(
+        "SELECT * FROM contacts WHERE email=? AND user_id=?",
+        (contact.email, current_user.id),
+    )
     existing_email = cursor.fetchone()
 
     if existing_email:
         raise HTTPException(status_code=400, detail="Email already exists.")
 
     cursor.execute(
-        "INSERT INTO contacts(name, phone, email, group_name) VALUES(?,?,?,?)",
-        (contact.name, contact.phone, contact.email, contact.group),
+        """
+        INSERT INTO contacts(user_id, name, phone, email, group_name)
+        VALUES (?, ?, ?, ?, ?)
+        """,
+        (
+            current_user.id,
+            contact.name,
+            contact.phone,
+            contact.email,
+            contact.group,
+        ),
     )
+
     conn.commit()
-    id = cursor.lastrowid
+    contact_id = cursor.lastrowid
 
     return {
-        "id": id,
+        "id": contact_id,
+        "user_id": current_user.id,
         "name": contact.name,
         "phone": contact.phone,
         "email": contact.email,
@@ -70,16 +91,31 @@ def update_contact(
     contact_id: int,
     contact: Contact,
     conn: sqlite3.Connection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
 ):
     cursor = conn.cursor()
+
     cursor.execute(
-        "UPDATE contacts SET name=?, phone=?, email=?, group_name=? WHERE id=?",
-        (contact.name, contact.phone, contact.email, contact.group, contact_id),
+        """
+        UPDATE contacts
+        SET name=?, phone=?, email=?, group_name=?
+        WHERE id=? AND user_id=?
+        """,
+        (
+            contact.name,
+            contact.phone,
+            contact.email,
+            contact.group,
+            contact_id,
+            current_user.id,
+        ),
     )
 
     if cursor.rowcount == 0:
-        raise HTTPException(status_code=404, detail="ID does not exist")
+        raise HTTPException(
+            status_code=404,
+            detail="Contact not found or you don't have permission to update it.",
+        )
 
     conn.commit()
 
@@ -87,6 +123,7 @@ def update_contact(
         "message": "Contact Updated Successfully.",
         "contact": {
             "id": contact_id,
+            "user_id": current_user.id,
             "name": contact.name,
             "phone": contact.phone,
             "email": contact.email,
@@ -99,13 +136,20 @@ def update_contact(
 def delete_contact(
     contact_id: int,
     conn: sqlite3.Connection = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: UserOut = Depends(get_current_user),
 ):
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM contacts WHERE id=?", (contact_id,))
+
+    cursor.execute(
+        "DELETE FROM contacts WHERE id=? AND user_id=?",
+        (contact_id, current_user.id),
+    )
 
     if cursor.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Id does not exist")
+        raise HTTPException(
+            status_code=404,
+            detail="Contact not found or you don't have permission to delete it.",
+        )
 
     conn.commit()
 
